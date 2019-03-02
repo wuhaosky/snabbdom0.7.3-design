@@ -17,6 +17,7 @@ function addNS(data: any, children: VNodes | undefined, sel: string | undefined)
   }
 }
 
+// 创建vnode树
 export function h(sel: string): VNode;
 export function h(sel: string, data: VNodeData): VNode;
 export function h(sel: string, children: VNodeChildren): VNode;
