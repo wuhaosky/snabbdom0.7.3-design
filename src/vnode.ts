@@ -36,6 +36,7 @@ export interface VNodeData {
   [key: string]: any; // for any other 3rd party module
 }
 
+// 创建vnode
 export function vnode(sel: string | undefined,
                       data: any | undefined,
                       children: Array<VNode | string> | undefined,
