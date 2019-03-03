@@ -79,7 +79,7 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
     };
   }
 
-  // 为 vnode（tree） 实际创建 dom (tree)（未插入文档）
+  // 为 vnode（tree） 创建 真实dom (tree)（未插入文档）
   function createElm(vnode: VNode, insertedVnodeQueue: VNodeQueue): Node {
     let i: any, data = vnode.data;
     if (data !== undefined) {
@@ -175,7 +175,7 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
     for (; startIdx <= endIdx; ++startIdx) {
       let i: any, listeners: number, rm: () => void, ch = vnodes[startIdx];
       if (ch != null) {
-        if (isDef(ch.sel)) {
+        if (isDef(ch.sel)) { // 非文本节点
           // 调用 destroy hook
           invokeDestroyHook(ch);
           listeners = cbs.remove.length + 1;
@@ -187,7 +187,7 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
           } else {
             rm();
           }
-        } else { // Text node
+        } else { // Text node 文本节点
           api.removeChild(parentElm, ch.elm as Node);
         }
       }
@@ -269,11 +269,15 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
     }
   }
 
+  // patch oldVnode 和 vnode （它们是相同的 vnode）
+  // 1. 更新本身对应 dom 的 textContent/children/其它属性；
+  // 2. 根据 children 的变化去决定是否递归 patch children 里的每个 vnode。
   function patchVnode(oldVnode: VNode, vnode: VNode, insertedVnodeQueue: VNodeQueue) {
     let i: any, hook: any;
     if (isDef(i = vnode.data) && isDef(hook = i.hook) && isDef(i = hook.prepatch)) {
       i(oldVnode, vnode);
     }
+    // 因为 vnode 和 oldVnode 是相同的 vnode，所以我们可以复用 oldVnode.elm。
     const elm = vnode.elm = (oldVnode.elm as Node);
     let oldCh = oldVnode.children;
     let ch = vnode.children;
@@ -283,21 +287,23 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
       i = vnode.data.hook;
       if (isDef(i) && isDef(i = i.update)) i(oldVnode, vnode);
     }
-    if (isUndef(vnode.text)) {
-      if (isDef(oldCh) && isDef(ch)) {
+    if (isUndef(vnode.text)) { // 1 如果 vnode.text 是 undefined，则比较新旧节点的子节点数组
+      // 比较 old children 和 new children，并更新
+      if (isDef(oldCh) && isDef(ch)) { // 1.1 新旧子节点数组都有值，则调用updateChildren函数进行进一步比较
+        // 核心逻辑（最复杂的地方）：怎么比较新旧 children 并更新
         if (oldCh !== ch) updateChildren(elm, oldCh as Array<VNode>, ch as Array<VNode>, insertedVnodeQueue);
-      } else if (isDef(ch)) {
-        if (isDef(oldVnode.text)) api.setTextContent(elm, '');
-        addVnodes(elm, null, ch as Array<VNode>, 0, (ch as Array<VNode>).length - 1, insertedVnodeQueue);
-      } else if (isDef(oldCh)) {
-        removeVnodes(elm, oldCh as Array<VNode>, 0, (oldCh as Array<VNode>).length - 1);
-      } else if (isDef(oldVnode.text)) {
-        api.setTextContent(elm, '');
+      } else if (isDef(ch)) { // 1.2 只有新节点的子节点数组都有值
+        if (isDef(oldVnode.text)) api.setTextContent(elm, ''); // 清空旧节点元素的文本
+        addVnodes(elm, null, ch as Array<VNode>, 0, (ch as Array<VNode>).length - 1, insertedVnodeQueue); // 往elm元素上添加子元素
+      } else if (isDef(oldCh)) { // 1.3 只有旧节点的子节点数组都有值
+        removeVnodes(elm, oldCh as Array<VNode>, 0, (oldCh as Array<VNode>).length - 1); // 移除elm上的子元素
+      } else if (isDef(oldVnode.text)) { // 1.4 旧子节点元素含有文本
+        api.setTextContent(elm, ''); // 清空旧子节点元素文本
       }
-    } else if (oldVnode.text !== vnode.text) {
-      if (isDef(oldCh)) {
+    } else if (oldVnode.text !== vnode.text) { // 2 否则 （vnode 有 text），只要 text 不等，更新 dom 的 text。
+      if (isDef(oldCh)) { // 清空旧节点的子节点数组
         removeVnodes(elm, oldCh as Array<VNode>, 0, (oldCh as Array<VNode>).length - 1);
-      }
+      } // 设置新节点元素的文本
       api.setTextContent(elm, vnode.text as string);
     }
     if (isDef(hook) && isDef(i = hook.postpatch)) {
@@ -320,11 +326,11 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
       elm = oldVnode.elm as Node;
       parent = api.parentNode(elm); // 获取旧vnode的父元素
 
-      createElm(vnode, insertedVnodeQueue);
+      createElm(vnode, insertedVnodeQueue); // 为 vnode（tree） 创建 真实dom (tree)（未插入文档）
 
-      if (parent !== null) {
-        api.insertBefore(parent, vnode.elm as Node, api.nextSibling(elm));
-        removeVnodes(parent, [oldVnode], 0, 0);
+      if (parent !== null) { // 如果旧元素有父元素
+        api.insertBefore(parent, vnode.elm as Node, api.nextSibling(elm)); // 将新元素插入到父元素中，并指定新插入元素的位置是旧元素之后紧跟的位置。
+        removeVnodes(parent, [oldVnode], 0, 0); // 移除旧元素
       }
     }
 
