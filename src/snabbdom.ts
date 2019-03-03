@@ -304,10 +304,9 @@ export function init(modules: Array<Partial<Module>>, domApi?: DOMAPI) {
         }
       }
     }
-    // 上面的循环结束后（循环条件有两个），处理可能的未处理到的 vnode。
-    // 如果是 new vnodes 里有未处理的（oldStartIdx > oldEndIdx
-    // 说明 old vnodes 先处理完毕）
-    if (oldStartIdx <= oldEndIdx || newStartIdx <= newEndIdx) {
+    // 上面的循环结束后（循环条件有两个），处理可能的未处理到的 vnode。 
+    if (oldStartIdx <= oldEndIdx || newStartIdx <= newEndIdx) { 
+      // 如果是 new vnodes 里有未处理的（oldStartIdx > oldEndIdx 说明 old vnodes 先处理完毕）
       if (oldStartIdx > oldEndIdx) {
         before = newCh[newEndIdx+1] == null ? null : newCh[newEndIdx+1].elm;
         addVnodes(parentElm, before, newCh, newStartIdx, newEndIdx, insertedVnodeQueue);
